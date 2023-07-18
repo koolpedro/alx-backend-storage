@@ -1,3 +1,20 @@
-// insert doc
+// 2-insert.js
 
-db.school.insert({name: "Holberton school})
+// Access the command-line arguments
+const dbName = process.argv[2];
+
+// Connect to the MongoDB server
+const connection = new Mongo();
+const db = connection.getDB(dbName);
+
+// Insert the document into the "school" collection
+db.school.insertOne({
+  name: "Holberton school"
+});
+
+// Print the result
+print("WriteResult({ \"nInserted\" : 1 })");
+
+// Close the connection
+quit();
+
