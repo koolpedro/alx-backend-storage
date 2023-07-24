@@ -6,59 +6,53 @@ import requests
 import redis
 from functools import wraps
 
-# Decorator to cache the function result with an expiration time of 10 seconds
-def cache_with_expiration(expiration_time):
+# Dictionary to store cached pages
+CACHE = {}
+
+def cache_decorator(expiration_time):
     def decorator(func):
-        cache = {}
-        @functools.wraps(func)
+        @wraps(func)
         def wrapper(url):
-            # If the cached result exists and not expired, return it
-            if url in cache and time.time() - cache[url]["time"] < expiration_time:
-                return cache[url]["content"]
+            if url in CACHE and time.time() - CACHE[url]["timestamp"] < expiration_time:
+                print(f"Cache hit for {url}")
+                return CACHE[url]["content"]
 
-            # Fetch the HTML content using requests module
-            response = requests.get(url)
-            if response.status_code == 200:
-                content = response.text
-            else:
-                content = f"Error: Unable to fetch the page for URL '{url}'"
-
-            # Cache the result along with the current time
-            cache[url] = {"content": content, "time": time.time()}
-
+            print(f"Cache miss for {url}")
+            content = func(url)
+            CACHE[url] = {
+                "content": content,
+                "timestamp": time.time()
+            }
             return content
+
         return wrapper
     return decorator
 
-# Decorator to track the number of times a URL was accessed
-def track_url_access(func):
-    access_counts = {}
-    @functools.wraps(func)
-    def wrapper(url):
-        # Increment the access count for the URL
-        access_counts[url] = access_counts.get(url, 0) + 1
-        return func(url)
-    return wrapper
-
-# Apply both decorators to the get_page function
-@track_url_access
-@cache_with_expiration(expiration_time=10)
+@cache_decorator(expiration_time=10)
 def get_page(url: str) -> str:
-    return requests.get(url).text
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.text
+    else:
+        raise Exception(f"Error fetching page from {url}: {response.status_code}")
 
+# Example usage
 if __name__ == "__main__":
-    # Test the get_page function
-    url = "http://slowwly.robertomurray.co.uk/delay/1000/url/https://www.example.com"
-    for i in range(5):
-        content = get_page(url)
-        print(f"Access {i + 1} - Content Length: {len(content)}")
+    try:
+        url = "http://slowwly.robertomurray.co.uk/delay/5000/url/https://www.example.com"
+        content1 = get_page(url)
+        print(content1)
 
-    # Wait for 11 seconds to test cache expiration
-    time.sleep(11)
+        # Simulate a second request to the same URL within the cache duration
+        content2 = get_page(url)
+        print(content2)
 
-    for i in range(5):
-        content = get_page(url)
-        print(f"Access {i + 1} - Content Length: {len(content)}")
+        # Wait for more than 10 seconds to test cache expiration
+        time.sleep(11)
 
-    # Check the number of times the URL was accessed
-    print(f"URL '{url}' was accessed {track_url_access.access_counts.get(url, 0)} times.")
+        # The following request should be a cache miss as the cache entry has expired
+        content3 = get_page(url)
+        print(content3)
+        
+    except Exception as e:
+        print(str(e))
