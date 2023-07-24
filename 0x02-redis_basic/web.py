@@ -1,11 +1,10 @@
-#!/usr/bin/env /python3
+#!/usr/bin/env python3
 """
-web file
+Web file
 """
-
 import requests
-import functools
-import time
+import redis
+from functools import wraps
 
 # Decorator to cache the function result with an expiration time of 10 seconds
 def cache_with_expiration(expiration_time):
